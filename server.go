@@ -240,6 +240,7 @@ type Server struct {
 	// It is only supported on certain GOOSes and when using ListenAndServe.
 	ReusePort bool
 	// Whether to set the SO_REUSEADDR socket option, allowing multiple listeners to be bound to a single address.
+	// Crucially this allows binding when an existing server is listening on `0.0.0.0` or `::`.
 	// It is only supported on certain GOOSes and when using ListenAndServe.
 	ReuseAddr bool
 	// AcceptMsgFunc will check the incoming message and will reject it early in the process.
