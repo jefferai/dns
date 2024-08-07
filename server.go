@@ -489,9 +489,6 @@ func (srv *Server) serveTCP(l net.Listener) error {
 			if !srv.isStarted() {
 				return nil
 			}
-			if neterr, ok := err.(net.Error); ok && neterr.Temporary() {
-				continue
-			}
 			return err
 		}
 		srv.lock.Lock()
@@ -547,9 +544,6 @@ func (srv *Server) serveUDP(l net.PacketConn) error {
 		if err != nil {
 			if !srv.isStarted() {
 				return nil
-			}
-			if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
-				continue
 			}
 			return err
 		}
