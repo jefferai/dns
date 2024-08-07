@@ -15,6 +15,8 @@ func listenTCP(network, addr string, reuseport, reuseaddr bool) (net.Listener, e
 	return net.Listen(network, addr)
 }
 
+const supportsReuseAddr = false
+
 func listenUDP(network, addr string, reuseport, reuseaddr bool) (net.PacketConn, error) {
 	if reuseport || reuseaddr {
 		// TODO(tmthrgd): return an error?
