@@ -24,7 +24,6 @@ func TestSVCB(t *testing.T) {
 		{`key65002`, ``},
 		{`key65003`, `=\"\"`},
 		{`key65004`, `\254\ \ \030\000`},
-		{`ohttp`, ``},
 	}
 
 	for _, o := range svcbs {
@@ -86,10 +85,6 @@ func TestDecodeBadSVCB(t *testing.T) {
 		{
 			key:  SVCB_IPV6HINT,
 			data: []byte{0, 0, 0},
-		},
-		{
-			key:  SVCB_OHTTP,
-			data: []byte{0},
 		},
 	}
 	for _, o := range svcbs {

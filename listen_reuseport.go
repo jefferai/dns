@@ -25,8 +25,6 @@ func reuseportControl(network, address string, c syscall.RawConn) error {
 	return opErr
 }
 
-const supportsReuseAddr = true
-
 func reuseaddrControl(network, address string, c syscall.RawConn) error {
 	var opErr error
 	err := c.Control(func(fd uintptr) {
@@ -39,7 +37,7 @@ func reuseaddrControl(network, address string, c syscall.RawConn) error {
 	return opErr
 }
 
-func listenTCP(network, addr string, reuseport, reuseaddr bool) (net.Listener, error) {
+func listenTCP(network, addr string, reuseport bool, reuseaddr bool) (net.Listener, error) {
 	var lc net.ListenConfig
 	switch {
 	case reuseaddr && reuseport:
@@ -52,7 +50,7 @@ func listenTCP(network, addr string, reuseport, reuseaddr bool) (net.Listener, e
 	return lc.Listen(context.Background(), network, addr)
 }
 
-func listenUDP(network, addr string, reuseport, reuseaddr bool) (net.PacketConn, error) {
+func listenUDP(network, addr string, reuseport bool, reuseaddr bool) (net.PacketConn, error) {
 	var lc net.ListenConfig
 	switch {
 	case reuseaddr && reuseport:

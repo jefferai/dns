@@ -14,7 +14,7 @@ import (
 // SVCBKey is the type of the keys used in the SVCB RR.
 type SVCBKey uint16
 
-// Keys defined in rfc9460
+// Keys defined in draft-ietf-dnsop-svcb-https-08 Section 14.3.2.
 const (
 	SVCB_MANDATORY SVCBKey = iota
 	SVCB_ALPN
@@ -23,8 +23,7 @@ const (
 	SVCB_IPV4HINT
 	SVCB_ECHCONFIG
 	SVCB_IPV6HINT
-	SVCB_DOHPATH // rfc9461 Section 5
-	SVCB_OHTTP   // rfc9540 Section 8
+	SVCB_DOHPATH // draft-ietf-add-svcb-dns-02 Section 9
 
 	svcb_RESERVED SVCBKey = 65535
 )
@@ -38,7 +37,6 @@ var svcbKeyToStringMap = map[SVCBKey]string{
 	SVCB_ECHCONFIG:       "ech",
 	SVCB_IPV6HINT:        "ipv6hint",
 	SVCB_DOHPATH:         "dohpath",
-	SVCB_OHTTP:           "ohttp",
 }
 
 var svcbStringToKeyMap = reverseSVCBKeyMap(svcbKeyToStringMap)
@@ -87,7 +85,7 @@ func (rr *SVCB) parse(c *zlexer, o string) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
-		return &ParseError{file: l.token, err: "bad SVCB priority", lex: l}
+		return &ParseError{l.token, "bad SVCB priority", l}
 	}
 	rr.Priority = uint16(i)
 
@@ -97,7 +95,7 @@ func (rr *SVCB) parse(c *zlexer, o string) *ParseError {
 
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
-		return &ParseError{file: l.token, err: "bad SVCB Target", lex: l}
+		return &ParseError{l.token, "bad SVCB Target", l}
 	}
 	rr.Target = name
 
@@ -113,7 +111,7 @@ func (rr *SVCB) parse(c *zlexer, o string) *ParseError {
 			if !canHaveNextKey {
 				// The key we can now read was probably meant to be
 				// a part of the last value.
-				return &ParseError{file: l.token, err: "bad SVCB value quotation", lex: l}
+				return &ParseError{l.token, "bad SVCB value quotation", l}
 			}
 
 			// In key=value pairs, value does not have to be quoted unless value
@@ -126,7 +124,7 @@ func (rr *SVCB) parse(c *zlexer, o string) *ParseError {
 				// Key with no value and no equality sign
 				key = l.token
 			} else if idx == 0 {
-				return &ParseError{file: l.token, err: "bad SVCB key", lex: l}
+				return &ParseError{l.token, "bad SVCB key", l}
 			} else {
 				key, value = l.token[:idx], l.token[idx+1:]
 
@@ -146,30 +144,30 @@ func (rr *SVCB) parse(c *zlexer, o string) *ParseError {
 							value = l.token
 							l, _ = c.Next()
 							if l.value != zQuote {
-								return &ParseError{file: l.token, err: "SVCB unterminated value", lex: l}
+								return &ParseError{l.token, "SVCB unterminated value", l}
 							}
 						case zQuote:
 							// There's nothing in double quotes.
 						default:
-							return &ParseError{file: l.token, err: "bad SVCB value", lex: l}
+							return &ParseError{l.token, "bad SVCB value", l}
 						}
 					}
 				}
 			}
 			kv := makeSVCBKeyValue(svcbStringToKey(key))
 			if kv == nil {
-				return &ParseError{file: l.token, err: "bad SVCB key", lex: l}
+				return &ParseError{l.token, "bad SVCB key", l}
 			}
 			if err := kv.parse(value); err != nil {
-				return &ParseError{file: l.token, wrappedErr: err, lex: l}
+				return &ParseError{l.token, err.Error(), l}
 			}
 			xs = append(xs, kv)
 		case zQuote:
-			return &ParseError{file: l.token, err: "SVCB key can't contain double quotes", lex: l}
+			return &ParseError{l.token, "SVCB key can't contain double quotes", l}
 		case zBlank:
 			canHaveNextKey = true
 		default:
-			return &ParseError{file: l.token, err: "bad SVCB values", lex: l}
+			return &ParseError{l.token, "bad SVCB values", l}
 		}
 		l, _ = c.Next()
 	}
@@ -203,8 +201,6 @@ func makeSVCBKeyValue(key SVCBKey) SVCBKeyValue {
 		return new(SVCBIPv6Hint)
 	case SVCB_DOHPATH:
 		return new(SVCBDoHPath)
-	case SVCB_OHTTP:
-		return new(SVCBOhttp)
 	case svcb_RESERVED:
 		return nil
 	default:
@@ -775,8 +771,8 @@ func (s *SVCBIPv6Hint) copy() SVCBKeyValue {
 // SVCBDoHPath pair is used to indicate the URI template that the
 // clients may use to construct a DNS over HTTPS URI.
 //
-// See RFC 9461 (https://datatracker.ietf.org/doc/html/rfc9461)
-// and RFC 9462 (https://datatracker.ietf.org/doc/html/rfc9462).
+// See RFC xxxx (https://datatracker.ietf.org/doc/html/draft-ietf-add-svcb-dns-02)
+// and RFC yyyy (https://datatracker.ietf.org/doc/html/draft-ietf-add-ddr-06).
 //
 // A basic example of using the dohpath option together with the alpn
 // option to indicate support for DNS over HTTPS on a certain path:
@@ -818,44 +814,6 @@ func (s *SVCBDoHPath) copy() SVCBKeyValue {
 	return &SVCBDoHPath{
 		Template: s.Template,
 	}
-}
-
-// The "ohttp" SvcParamKey is used to indicate that a service described in a SVCB RR
-// can be accessed as a target using an associated gateway.
-// Both the presentation and wire-format values for the "ohttp" parameter MUST be empty.
-//
-// See RFC 9460 (https://datatracker.ietf.org/doc/html/rfc9460/)
-// and RFC 9230 (https://datatracker.ietf.org/doc/html/rfc9230/)
-//
-// A basic example of using the dohpath option together with the alpn
-// option to indicate support for DNS over HTTPS on a certain path:
-//
-//	s := new(dns.SVCB)
-//	s.Hdr = dns.RR_Header{Name: ".", Rrtype: dns.TypeSVCB, Class: dns.ClassINET}
-//	e := new(dns.SVCBAlpn)
-//	e.Alpn = []string{"h2", "h3"}
-//	p := new(dns.SVCBOhttp)
-//	s.Value = append(s.Value, e, p)
-type SVCBOhttp struct{}
-
-func (*SVCBOhttp) Key() SVCBKey          { return SVCB_OHTTP }
-func (*SVCBOhttp) copy() SVCBKeyValue    { return &SVCBOhttp{} }
-func (*SVCBOhttp) pack() ([]byte, error) { return []byte{}, nil }
-func (*SVCBOhttp) String() string        { return "" }
-func (*SVCBOhttp) len() int              { return 0 }
-
-func (*SVCBOhttp) unpack(b []byte) error {
-	if len(b) != 0 {
-		return errors.New("dns: svcbotthp: svcbotthp must have no value")
-	}
-	return nil
-}
-
-func (*SVCBOhttp) parse(b string) error {
-	if b != "" {
-		return errors.New("dns: svcbotthp: svcbotthp must have no value")
-	}
-	return nil
 }
 
 // SVCBLocal pair is intended for experimental/private use. The key is recommended
